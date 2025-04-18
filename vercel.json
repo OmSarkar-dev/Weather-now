@@ -7,14 +7,10 @@
       "destination": "/index.html"
     }
   ],
-  "routes": [
-    {
-      "handle": "filesystem"
-    },
+
     {
       "src": "/.*",
       "status": 404,
       "dest": "/assets/404.html"
     }
-  ]
-}
+  
