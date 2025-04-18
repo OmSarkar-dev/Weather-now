@@ -1,0 +1,38 @@
+{
+    "rewrites": [
+      {
+        "source": "/",
+        "destination": "/public/assets/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/public/assets/favicon.ico",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      },
+       {
+        "source": "/public/assets/favicon.png",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      }
+    ],
+    "routes": [
+      {
+        "handle": "filesystem"
+      },
+      {
+        "src": "/.*",
+        "status": 404,
+        "dest": "/public/assets/404.html"
+      }
+    ]
+  }
