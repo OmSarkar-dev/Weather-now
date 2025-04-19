@@ -1,0 +1,27 @@
+{
+  "routes": [
+    {
+      "src": "^/$",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/assets/favicon.ico",
+      "headers": {
+        "Content-Type": "image/x-icon"
+      },
+      "dest": "/assets/favicon.ico"
+    },
+    {
+      "src": "/assets/favicon.png",
+      "headers": {
+        "Content-Type": "image/png"
+      },
+      "dest": "/assets/favicon.png"
+    },
+    {
+      "src": "/.*",
+      "status": 404,
+      "dest": "/assets/404.html"
+    }
+  ]
+}
