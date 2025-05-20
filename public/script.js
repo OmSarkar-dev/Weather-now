@@ -5,12 +5,16 @@ const apiKey = 'b1d13c7c8c8a5b26fca7028606be6bd2'; // Replace with your actual A
 const cityInput = document.getElementById('city-input');
 const searchBtn = document.getElementById('search-btn');
 const locationBtn = document.getElementById('location-btn');
+const errorMessage = document.getElementById('error-message');
+const errorText = document.getElementById('error-text');
 const loadingElement = document.getElementById('loading');
 const weatherInfoElement = document.getElementById('weather-info');
 const cityName = document.getElementById('city-name');
+const locationBreakdown = document.getElementById('location-breakdown');
 const dateElement = document.getElementById('date');
+const currentTimeElement = document.getElementById('current-time');
 const tempElement = document.getElementById('temp');
-const weatherIconElement = document.getElementById('weather-icon'); // Changed variable name
+const weatherIconElement = document.getElementById('weather-icon');
 const weatherDesc = document.getElementById('weather-desc');
 const humidityElement = document.getElementById('humidity');
 const windSpeedElement = document.getElementById('wind-speed');
@@ -18,7 +22,8 @@ const pressureElement = document.getElementById('pressure');
 const uvIndexElement = document.getElementById('uv-index');
 const visibilityElement = document.getElementById('visibility');
 const sunriseElement = document.getElementById('sunrise');
-const sunsetElement = document.getElementById('sunset'); // Added sunset element
+const sunsetElement = document.getElementById('sunset');
+const todayForecastContainer = document.getElementById('today-forecast-container');
 const forecastContainer = document.getElementById('forecast-container');
 const celsiusBtn = document.getElementById('celsius-btn');
 const fahrenheitBtn = document.getElementById('fahrenheit-btn');
@@ -27,11 +32,13 @@ const fahrenheitBtn = document.getElementById('fahrenheit-btn');
 let currentUnit = 'celsius';
 let currentWeatherData = null;
 let forecastData = null;
+let clockInterval = null;
 
 // Initialize the app
 function init() {
-    updateDate();
+    updateDateTime();
     setupEventListeners();
+    startClock();
 
     // Check if we have a city in localStorage
     const lastCity = localStorage.getItem('lastCity');
@@ -42,23 +49,56 @@ function init() {
     }
 }
 
-// Current Date
-function updateDate() {
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const today = new Date();
-    dateElement.textContent = today.toLocaleDateString('en-US', options);
+// Update Date and Time
+function updateDateTime() {
+    const now = new Date();
+    
+    // Update date
+    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    dateElement.textContent = now.toLocaleDateString('en-US', dateOptions);
+    
+    // Update time
+    updateCurrentTime();
+}
+
+// Update current time
+function updateCurrentTime() {
+    const now = new Date();
+    const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+    currentTimeElement.textContent = now.toLocaleTimeString('en-US', timeOptions);
+}
+
+// Start clock
+function startClock() {
+    // Clear any existing interval
+    if (clockInterval) clearInterval(clockInterval);
+    
+    // Update time immediately
+    updateCurrentTime();
+    
+    // Set interval to update time every minute
+    clockInterval = setInterval(updateCurrentTime, 60000);
 }
 
 // Show loading state
 function showLoading() {
-    loadingElement.style.display = 'flex'; // Use flex to center spinner and text
+    loadingElement.style.display = 'block';
     weatherInfoElement.style.display = 'none';
+    errorMessage.style.display = 'none';
 }
 
 // Hide loading state
 function hideLoading() {
     loadingElement.style.display = 'none';
     weatherInfoElement.style.display = 'block';
+}
+
+// Show error message
+function showError(message) {
+    errorText.textContent = message;
+    errorMessage.style.display = 'flex';
+    loadingElement.style.display = 'none';
+    weatherInfoElement.style.display = 'none';
 }
 
 // Convert Kelvin to Celsius
@@ -78,7 +118,7 @@ function metersToKm(meters) {
 
 // Convert seconds to time string (accounting for timezone offset)
 function formatTime(timestamp, timezone) {
-     const date = new Date((timestamp + timezone) * 1000);
+    const date = new Date((timestamp + timezone) * 1000);
     // Use UTC methods to apply the timezone offset correctly
     const hours = date.getUTCHours();
     const minutes = date.getUTCMinutes();
@@ -87,10 +127,45 @@ function formatTime(timestamp, timezone) {
     return `${formattedHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
 }
 
+// Format hour from timestamp
+function formatHour(timestamp, timezone) {
+    const date = new Date((timestamp + timezone) * 1000);
+    const hours = date.getUTCHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 || 12;
+    return `${formattedHours} ${ampm}`;
+}
 
 // Get Weather Icon URL (using OpenWeatherMap icons)
 function getWeatherIconUrl(iconCode) {
     return `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+}
+
+// Fetch location details using reverse geocoding
+async function fetchLocationDetails(lat, lon) {
+    try {
+        const response = await fetch(
+            `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${apiKey}`
+        );
+        
+        if (!response.ok) {
+            throw new Error('Unable to fetch location details');
+        }
+        
+        const data = await response.json();
+        if (data && data.length > 0) {
+            const location = data[0];
+            return {
+                country: location.country || '',
+                state: location.state || '',
+                city: location.name || ''
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching location details:', error);
+        return null;
+    }
 }
 
 // Fetch Weather Data by City Name
@@ -110,6 +185,9 @@ async function fetchWeatherByCity(city) {
 
         const currentData = await currentResponse.json();
         currentWeatherData = currentData;
+
+        // Fetch location details
+        const locationDetails = await fetchLocationDetails(currentData.coord.lat, currentData.coord.lon);
 
         // Fetch forecast data
         const forecastResponse = await fetch(
@@ -132,11 +210,10 @@ async function fetchWeatherByCity(city) {
             const uvData = await uvResponse.json();
             currentData.uvi = uvData.value;
         } else {
-             currentData.uvi = null; // Set to null if UV data is not available
+            currentData.uvi = null; // Set to null if UV data is not available
         }
 
-
-        displayWeather(currentData, forecastDataResponse);
+        displayWeather(currentData, forecastDataResponse, locationDetails);
     } catch (error) {
         showError(error.message);
     } finally {
@@ -162,6 +239,8 @@ async function fetchWeatherByCoords(lat, lon) {
         // Save the city to localStorage
         localStorage.setItem('lastCity', currentData.name);
 
+        // Fetch location details
+        const locationDetails = await fetchLocationDetails(lat, lon);
 
         // Fetch forecast data
         const forecastResponse = await fetch(
@@ -180,14 +259,14 @@ async function fetchWeatherByCoords(lat, lon) {
             `https://api.openweathermap.org/data/2.5/uvi?lat=${lat}&lon=${lon}&appid=${apiKey}`
         );
 
-         if (uvResponse.ok) {
+        if (uvResponse.ok) {
             const uvData = await uvResponse.json();
             currentData.uvi = uvData.value;
         } else {
-             currentData.uvi = null; // Set to null if UV data is not available
+            currentData.uvi = null; // Set to null if UV data is not available
         }
 
-        displayWeather(currentData, forecastDataResponse);
+        displayWeather(currentData, forecastDataResponse, locationDetails);
     } catch (error) {
         showError(error.message);
     } finally {
@@ -196,9 +275,22 @@ async function fetchWeatherByCoords(lat, lon) {
 }
 
 // Display Weather Data
-function displayWeather(currentData, forecastData) {
+function displayWeather(currentData, forecastData, locationDetails) {
     // Update current weather
     cityName.textContent = currentData.name;
+    
+    // Update location breakdown
+    if (locationDetails) {
+        const parts = [];
+        if (locationDetails.country) parts.push(locationDetails.country);
+        if (locationDetails.state) parts.push(locationDetails.state);
+        if (locationDetails.city && locationDetails.city !== currentData.name) parts.push(locationDetails.city);
+        
+        locationBreakdown.textContent = parts.join(' - ');
+    } else {
+        locationBreakdown.textContent = currentData.sys.country || '';
+    }
+    
     weatherDesc.textContent = currentData.weather[0].description;
 
     // Set temperature based on current unit
@@ -217,7 +309,10 @@ function displayWeather(currentData, forecastData) {
     weatherIconElement.src = getWeatherIconUrl(currentData.weather[0].icon);
     weatherIconElement.alt = currentData.weather[0].description; // Set alt text
 
-    // Update forecast
+    // Update today's forecast
+    updateTodayForecastDisplay(forecastData);
+
+    // Update 5-day forecast
     updateForecastDisplay(forecastData);
 }
 
@@ -237,7 +332,50 @@ function updateTemperatureDisplay() {
     }
 }
 
-// Update forecast display
+// Update today's forecast display
+function updateTodayForecastDisplay(forecastData) {
+    if (!forecastData) return;
+
+    // Clear previous forecast
+    todayForecastContainer.innerHTML = '';
+
+    // Get today's date
+    const today = new Date().setHours(0, 0, 0, 0);
+    
+    // Filter forecast items for today
+    const todayItems = forecastData.list.filter(item => {
+        const itemDate = new Date(item.dt * 1000).setHours(0, 0, 0, 0);
+        return itemDate === today;
+    });
+
+    // If no items for today, get the earliest items from tomorrow
+    const itemsToShow = todayItems.length > 0 ? todayItems : forecastData.list.slice(0, 8);
+
+    // Display hourly forecast
+    itemsToShow.forEach(item => {
+        const forecastItem = document.createElement('div');
+        forecastItem.className = 'today-forecast-item';
+
+        const tempValue = currentUnit === 'celsius' 
+            ? Math.round(kelvinToCelsius(item.main.temp)) 
+            : Math.round(celsiusToFahrenheit(kelvinToCelsius(item.main.temp)));
+
+        forecastItem.innerHTML = `
+            <div class="today-forecast-time">
+                <i class="fa-regular fa-clock"></i>
+                ${formatHour(item.dt, forecastData.city.timezone)}
+            </div>
+            <div class="today-forecast-icon">
+                <img src="${getWeatherIconUrl(item.weather[0].icon)}" alt="${item.weather[0].description}">
+            </div>
+            <div class="today-forecast-temp">${tempValue}°</div>
+        `;
+
+        todayForecastContainer.appendChild(forecastItem);
+    });
+}
+
+// Update 5-day forecast display
 function updateForecastDisplay(forecastData) {
     if (!forecastData) return;
 
@@ -252,98 +390,102 @@ function updateForecastDisplay(forecastData) {
         const date = new Date(item.dt * 1000);
         const dateStr = date.toLocaleDateString();
 
-        // Skip if it's today or before the current time (to get future 5 days)
-        // Find the entry closest to noon (12:00 PM) for a good daily representation
-         const hours = date.getHours();
-         if (dateStr === today && hours < new Date().getHours()) return;
+        // Skip if it's today (we already show today's forecast separately)
+        if (dateStr === today) return;
 
-         const dayKey = date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric' }); // Use full date as key to distinguish days
+        const dayKey = date.toLocaleDateString('en-US', { 
+            weekday: 'short', 
+            year: 'numeric', 
+            month: 'numeric', 
+            day: 'numeric' 
+        });
 
         if (!dailyForecast[dayKey]) {
-             // Initialize with the first entry for the day, and track min/max
+            // Initialize with the first entry for the day, and track min/max
             dailyForecast[dayKey] = {
                 day: date.toLocaleDateString('en-US', { weekday: 'short' }),
                 minTemp: kelvinToCelsius(item.main.temp),
                 maxTemp: kelvinToCelsius(item.main.temp),
                 icon: item.weather[0].icon,
                 description: item.weather[0].description,
-                // Add a timestamp or hour to help pick the "main" forecast for the day later
                 timestamp: item.dt,
-                items: [item] // Store all items for the day to potentially pick the closest to noon
+                items: [item]
             };
         } else {
             // Update min/max temperatures
             const tempC = kelvinToCelsius(item.main.temp);
             dailyForecast[dayKey].minTemp = Math.min(dailyForecast[dayKey].minTemp, tempC);
             dailyForecast[dayKey].maxTemp = Math.max(dailyForecast[dayKey].maxTemp, tempC);
-             dailyForecast[dayKey].items.push(item); // Add item to list
+            dailyForecast[dayKey].items.push(item);
         }
     });
 
-     // Filter to get only one entry per day, preferring the one closest to noon
-     const processedDailyForecast = {};
-     const dayKeys = Object.keys(dailyForecast);
+    // Process to get one entry per day
+    const processedDailyForecast = {};
+    const dayKeys = Object.keys(dailyForecast);
 
-     // Find the index of the first day that is not today
-     let firstFutureDayIndex = -1;
-     for (let i = 0; i < dayKeys.length; i++) {
-         if (new Date(dailyForecast[dayKeys[i]].timestamp * 1000).toLocaleDateString() !== today) {
-             firstFutureDayIndex = i;
-             break;
-         }
-     }
+    // Process the next 5 unique days
+    const futureDayKeys = dayKeys.slice(0, 5);
 
-     // Process the next 5 unique future days
-     const futureDayKeys = dayKeys.slice(firstFutureDayIndex, firstFutureDayIndex + 5);
+    futureDayKeys.forEach(dayKey => {
+        const dayData = dailyForecast[dayKey];
+        let bestItem = null;
+        let minTimeDiff = Infinity;
 
-     futureDayKeys.forEach(dayKey => {
-         const dayData = dailyForecast[dayKey];
-         let bestItem = null;
-         let minTimeDiff = Infinity;
+        // Find the forecast item closest to noon (12:00 UTC) for this day
+        dayData.items.forEach(item => {
+            const itemDate = new Date(item.dt * 1000);
+            const itemUTCHours = itemDate.getUTCHours();
+            const timeDiff = Math.abs(itemUTCHours - 12); // Difference from 12 UTC
 
-         // Find the forecast item closest to noon (12:00 UTC) for this day
-         dayData.items.forEach(item => {
-             const itemDate = new Date(item.dt * 1000);
-             const itemUTCHours = itemDate.getUTCHours();
-             const timeDiff = Math.abs(itemUTCHours - 12); // Difference from 12 UTC
+            if (timeDiff < minTimeDiff) {
+                minTimeDiff = timeDiff;
+                bestItem = item;
+            }
+        });
 
-             if (timeDiff < minTimeDiff) {
-                 minTimeDiff = timeDiff;
-                 bestItem = item;
-             }
-         });
-
-         if (bestItem) {
-              processedDailyForecast[dayKey] = {
-                day: dayData.day, // Short day name
+        if (bestItem) {
+            processedDailyForecast[dayKey] = {
+                day: dayData.day,
                 minTemp: dayData.minTemp,
                 maxTemp: dayData.maxTemp,
-                icon: bestItem.weather[0].icon, // Icon from the best item
-                description: bestItem.weather[0].description // Description from the best item
-             };
-         }
-     });
+                icon: bestItem.weather[0].icon,
+                description: bestItem.weather[0].description
+            };
+        }
+    });
 
-
-    // Display forecast for the processed 5 days
+    // Display forecast for the processed days
     Object.values(processedDailyForecast).forEach(dayData => {
         const forecastItem = document.createElement('div');
         forecastItem.className = 'forecast-item';
 
+        const maxTemp = currentUnit === 'celsius' 
+            ? Math.round(dayData.maxTemp) 
+            : Math.round(celsiusToFahrenheit(dayData.maxTemp));
+            
+        const minTemp = currentUnit === 'celsius' 
+            ? Math.round(dayData.minTemp) 
+            : Math.round(celsiusToFahrenheit(dayData.minTemp));
+
         forecastItem.innerHTML = `
-            <div class="forecast-day">${dayData.day}</div>
-            <img src="${getWeatherIconUrl(dayData.icon)}" alt="${dayData.description}" class="forecast-icon">
+            <div class="forecast-day">
+                <i class="fa-regular fa-calendar-day"></i>
+                ${dayData.day}
+            </div>
+            <div class="forecast-icon">
+                <img src="${getWeatherIconUrl(dayData.icon)}" alt="${dayData.description}">
+            </div>
             <p class="forecast-desc">${dayData.description}</p>
             <div class="forecast-temp">
-                <span class="max">${currentUnit === 'celsius' ? Math.round(dayData.maxTemp) : Math.round(celsiusToFahrenheit(dayData.maxTemp))}°</span>
-                <span class="min">${currentUnit === 'celsius' ? Math.round(dayData.minTemp) : Math.round(celsiusToFahrenheit(dayData.minTemp))}°</span>
+                <span class="max">${maxTemp}°</span>
+                <span class="min">${minTemp}°</span>
             </div>
         `;
 
         forecastContainer.appendChild(forecastItem);
     });
 }
-
 
 // Get User Location
 function getUserLocation() {
@@ -362,7 +504,7 @@ function getUserLocation() {
             },
             {
                 enableHighAccuracy: true,
-                timeout: 10000, // Increased timeout
+                timeout: 10000,
                 maximumAge: 0
             }
         );
@@ -404,15 +546,9 @@ function toggleTemperatureUnit(unit) {
     // Update displays
     updateTemperatureDisplay();
     if (forecastData) {
+        updateTodayForecastDisplay(forecastData);
         updateForecastDisplay(forecastData);
     }
-}
-
-// Show error message
-function showError(message) {
-    alert(message);
-    cityInput.value = ''; // Clear the input on error
-    hideLoading(); // Hide loading if it's still showing after an error
 }
 
 // Set up event listeners
@@ -442,6 +578,11 @@ function setupEventListeners() {
     celsiusBtn.addEventListener('click', () => toggleTemperatureUnit('celsius'));
     fahrenheitBtn.addEventListener('click', () => toggleTemperatureUnit('fahrenheit'));
 }
+
+// Clean up when page unloads
+window.addEventListener('beforeunload', () => {
+    if (clockInterval) clearInterval(clockInterval);
+});
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);
