@@ -5,16 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weather Now</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
-    <link rel="icon" href="/assets/favicon.png" type="image/png">    
+    <link rel="stylesheet" href="https://site-assets.fontawesome.com/releases/v6.7.2/css/all.css">
     <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="https://github.com/OmSarkar-dev/Omsarkar-dev/blob/main/images/favicon.png?raw=true">
 </head>
 <body>
     <div class="container">
         <div class="weather-app">
             <div class="header">
-                <h1>Weather Forecast</h1>
+                <h1><i class="fa-solid fa-cloud-sun"></i> Weather Forecast</h1>
                 <div class="unit-toggle">
                     <button id="celsius-btn" class="active">°C</button>
                     <button id="fahrenheit-btn">°F</button>
@@ -23,20 +22,26 @@
 
             <div class="search-box">
                 <input type="text" placeholder="Search for a city..." id="city-input">
-                <button id="search-btn"><i class="fas fa-search"></i></button>
-                <button id="location-btn" title="Use my current location"><i class="fas fa-location-arrow"></i></button>
+                <button id="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+                <button id="location-btn" title="Use my current location"><i class="fa-solid fa-location-crosshairs"></i></button>
+            </div>
+
+            <div class="error-message" id="error-message">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <p id="error-text"></p>
             </div>
 
             <div class="loading" id="loading">
-                <i class="fas fa-spinner fa-spin"></i>
+                <i class="fa-solid fa-spinner-third fa-spin"></i>
                 <p>Detecting your location...</p>
             </div>
 
             <div class="weather-info" id="weather-info">
                 <div class="current-weather">
                     <div class="location">
-                        <h2 id="city-name">New York</h2>
-                        <p id="date">Monday, January 1, 2023</p>
+                        <h2><i class="fa-light fa-location-dot"></i> <span id="city-name">New York</span></h2>
+                        <p class="location-breakdown"><i class="fa-light fa-map-pin"></i> <span id="location-breakdown">United States - NY - New York</span></p>
+                        <p class="date-time"><i class="fa-regular fa-clock"></i> <span id="date">Monday, January 1, 2023</span> <span id="current-time">12:00 PM</span></p>
                     </div>
 
                     <div class="weather-main">
@@ -45,50 +50,57 @@
                             <span class="degree">°C</span>
                         </div>
                         <div class="weather-icon">
-                             <img id="weather-icon" src="" alt="Weather Icon">
+                            <img id="weather-icon" src="/placeholder.svg" alt="Weather Icon">
                             <p id="weather-desc">Sunny</p>
                         </div>
                     </div>
 
                     <div class="weather-details">
                         <div class="detail">
-                            <i class="fas fa-water"></i> <div>
+                            <i class="fa-solid fa-droplet"></i>
+                            <div>
                                 <p>Humidity</p>
                                 <span id="humidity">60%</span>
                             </div>
                         </div>
                         <div class="detail">
-                            <i class="fas fa-wind"></i> <div>
+                            <i class="fa-solid fa-wind"></i>
+                            <div>
                                 <p>Wind Speed</p>
                                 <span id="wind-speed">10 km/h</span>
                             </div>
                         </div>
                         <div class="detail">
-                            <i class="fas fa-tachometer-alt"></i> <div>
+                            <i class="fa-solid fa-gauge"></i>
+                            <div>
                                 <p>Pressure</p>
                                 <span id="pressure">1012 hPa</span>
                             </div>
                         </div>
                         <div class="detail">
-                            <i class="fas fa-sun"></i> <div>
+                            <i class="fa-solid fa-sun"></i>
+                            <div>
                                 <p>UV Index</p>
                                 <span id="uv-index">5</span>
                             </div>
                         </div>
-                         <div class="detail">
-                            <i class="fas fa-eye"></i> <div>
+                        <div class="detail">
+                            <i class="fa-solid fa-eye"></i>
+                            <div>
                                 <p>Visibility</p>
                                 <span id="visibility">10 km</span>
                             </div>
                         </div>
                         <div class="detail">
-                            <i class="fas fa-sunrise"></i> <i class="fas fa-sun"></i> <div>
+                            <i class="fa-solid fa-sunrise"></i>
+                            <div>
                                 <p>Sunrise</p>
                                 <span id="sunrise">6:45 AM</span>
                             </div>
                         </div>
-                         <div class="detail">
-                            <i class="fas fa-sunset"></i> <i class="fas fa-moon"></i> <div>
+                        <div class="detail">
+                            <i class="fa-solid fa-sunset"></i>
+                            <div>
                                 <p>Sunset</p>
                                 <span id="sunset">6:00 PM</span>
                             </div>
@@ -96,19 +108,26 @@
                     </div>
                 </div>
 
+                <div class="today-forecast">
+                    <h3><i class="fa-regular fa-calendar-day"></i> Today's Forecast</h3>
+                    <div class="today-forecast-container" id="today-forecast-container">
+                        <!-- Today's forecast items will be inserted here by JavaScript -->
+                    </div>
+                </div>
+
                 <div class="forecast">
-                    <h3>5-Day Forecast</h3>
+                    <h3><i class="fa-regular fa-calendar-week"></i> 5-Day Forecast</h3>
                     <div class="forecast-container" id="forecast-container">
-                        </div>
+                        <!-- Forecast items will be inserted here by JavaScript -->
+                    </div>
                 </div>
             </div>
         </div>
 
-         <div class="footer-links">
-            <p>App made by <a href="https://github.com/OmSarkar-dev" target="_blank" rel="noopener noreferrer">@OmSarkar-dev</a></p>
-             <p>Project Repository: <a href="https://github.com/OmSarkar-dev/weather-now" target="_blank" rel="noopener noreferrer">GitHub Repo</a></p>
+        <div class="footer-links">
+            <p><i class="fa-solid fa-code"></i> App made by <a href="https://github.com/OmSarkar-dev" target="_blank" rel="noopener noreferrer">@OmSarkar-dev</a></p>
+            <p><i class="fa-brands fa-github"></i> Project Repository: <a href="https://github.com/OmSarkar-dev/weather-now" target="_blank" rel="noopener noreferrer">GitHub Repo</a></p>
         </div>
-
     </div>
 
     <script src="script.js"></script>
